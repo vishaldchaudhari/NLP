@@ -1,0 +1,132 @@
+import wordcloud
+import os
+import pandas as pd
+import numpy as np
+import bs4 as bs
+import urllib.request
+import re
+import spacy
+import re, string, unicodedata
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+from nltk import word_tokenize
+from collections import Counter
+lm=WordNetLemmatizer()
+os.chdir(r"F:\VBA\Complete-Project\wordcloud")
+
+
+from glob import glob
+
+path=r"F:\VBA\Complete-Project\wordcloud"
+all_files=glob(os.path.join(path,"*.xml"))
+
+
+import xml.etree.ElementTree as ET
+
+dfs=[]
+for filename in all_files:
+        tree=ET.parse(filename)
+        root=tree.getroot()
+        root=ET.tostring(root,encoding='utf8').decode('utf8')
+        dfs.append(root)
+        
+dfs[0]
+
+#************************************      
+
+parsed_article=bs.BeautifulSoup(dfs[0],'xml')
+paragraphs=parsed_article.find_all('description')
+
+
+article_text_full=""
+for p in paragraphs:
+    article_text_full += p.text
+    print(p.text)
+    
+
+
+def data_preprocessing(each_file):
+    parsed_article=bs.BeautifulSoup(each_file,'xml')
+    paragraphs=parsed_article.find_all('description')
+
+
+    article_text_full=""
+    for p in paragraphs:
+        article_text_full += p.text
+        print(p.text)
+        
+    return article_text_full
+
+
+data=[data_preprocessing(each_file) for each_file in dfs]
+
+#****************************************************************
+#After Combining all the articles
+
+from bs4 import BeautifulSoup
+soup=BeautifulSoup(dfs[0],'html.parser')
+
+
+print(soup.prettify())
+
+
+parsed_article=bs.BeautifulSoup(dfs[0],'xml')
+paragraphs=parsed_article.find_all('description')
+
+def remove_stopwords(file):
+    nlp=spacy.load('en_core_web_sm')
+    punctuations=string.punctuation
+    from nltk.corpus import stopwords
+    stopwords=stopwords.words('english')
+    SYMBOLS=" ".join(string.punctuation).split(" ")+["-",".."]
+    stopwords=nltk.corpus.stopwords.words('english')+SYMBOLS
+    
+    doc=nlp(file, disable=['parser','ner'])
+    tokens=[tok.lemma_.lower().strip() for tok in doc if tok.lemma_ !='-PRON']
+    tokens=[tok for tok in tokens if tok not in stopwords and tok not in punctuations]
+    s=[lm.lemmatize(word) for word in tokens]
+    tokens=" ".join(s)
+    
+    article_text=re.sub(r'\[[0-9]*\]',' ',tokens)
+    article_text=re.sub(r'\s+',' ',article_text)
+    
+    formatted_article_text=re.sub('[^a-zA-Z]',' ',article_text)
+    formatted_article_text=re.sub(r'\s+',' ',formatted_article_text)
+    formatted_article_text=re.sub(r'\W*\b\w{1,3}\b',"",formatted_article_text)
+    
+    return formatted_article_text
+
+clean_data=[remove_stopwords(file) for file in data]
+all_words=' '.join(clean_data)
+# Tokenize the cleaned data
+tokens = word_tokenize(all_words)
+# Count the occurrences of each word
+word_freq = Counter(tokens)
+
+# Get the top 5 words
+top_5_words = word_freq.most_common(5)
+
+print(top_5_words)
+
+import matplotlib.pyplot as plt
+from wordcloud import WordCloud
+wordcloud=WordCloud(width=800,height=500,random_state=21,max_words=200).generate(all_words)
+
+plt.figure(figsize=(10,7))
+plt.imshow(wordcloud)
+plt.axis('off')
+plt.show()
+
+# Separate the words and their frequencies
+words = [word[0] for word in top_5_words]
+frequencies = [word[1] for word in top_5_words]
+
+# Plotting the bar graph
+plt.figure(figsize=(10, 7))
+plt.bar(words, frequencies, color='skyblue')
+plt.xlabel('Words')
+plt.ylabel('Frequency')
+plt.title('Top 5 Most Common Words')
+plt.xticks(rotation=45)  # Rotate x-axis labels for better readability
+plt.show()
